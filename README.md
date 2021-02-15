@@ -16,12 +16,12 @@
 From here you can use whatever language you want that can work with TCP sockets to interace with TandoraProxy/Pianobar.
 	
 ### Commands:	
-* "update": have TandoraProxy query pianobar-windows for the current song, station, play time and whether or not playback is active and a list of your Pandora stations.
-* "playpause": toggle playing and pausing music playback.
-* "next": play next song.
-* "thumbsup": like current song.
-* "thumbsdown": dislike current song.
-* "change station *__station name__*": change the current station to station *???*.
+* `update`  have TandoraProxy query pianobar-windows for the current song, station, play time and whether or not playback is active and a list of your Pandora stations.
+* `playpause`  toggle playing and pausing music playback.
+* `next`  play next song.
+* `thumbsup`  like current song.
+* `thumbsdown`  dislike current song.
+* `change station *__station name__*`  change the current station to station *???*.
 
 ## Known Issues:
 Doesn't seem to work with the latest version (2020.04.20) of Pianobar-Windows, stick with version 2019.05.03.  For some reason the key commands are erradically accepted by pianobar and the responses are erratic as well.  I suspect something has changed with pianobar that makes it incompatible with the telnet library I'm Currently using.  Need to investigate more.
