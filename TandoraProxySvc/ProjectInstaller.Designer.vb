@@ -32,9 +32,11 @@
         '
         'ServiceInstaller1
         '
+        Me.ServiceInstaller1.DelayedAutoStart = True
         Me.ServiceInstaller1.Description = "Provide a network service for Pianobar"
         Me.ServiceInstaller1.DisplayName = "Tandora Proxy"
         Me.ServiceInstaller1.ServiceName = "TandoraProxy"
+        Me.ServiceInstaller1.ServicesDependedOn = New String() {"TlntSvr"}
         Me.ServiceInstaller1.StartType = System.ServiceProcess.ServiceStartMode.Automatic
         '
         'ProjectInstaller
