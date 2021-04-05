@@ -21,6 +21,20 @@ From here you can use whatever language you want that can work with TCP sockets 
 * `thumbsdown`  dislike current song.
 * `change station <station name>`  change the current station.
 
+## Response
+`IS PLAYING:` True/False indicator if Piabobar is playing music
+`STATION LIST:` Pipe-separated list of Pandora stations on your account
+`CURRENT STATION:` The currently selected Pandora station
+`CURRENT SONG:` The song currently playing
+`CURRENT TIME:` Current play time and remaining duration
+
+## Example Response
+`IS PLAYING: False`
+`STATION LIST: Aerosmith Radio|Bruce Hornsby Radio|Dave Matthews Band Radio`
+`CURRENT STATION: Bruce Hornsby Radio`
+`CURRENT SONG: "Sweet Child O' Mine" by "Scott D. Davis" on "Rockfluence"`
+`CURRENT TIME: -00:46/05:58`
+
 ## Known Issues
 Doesn't seem to work with the latest version (2020.04.20) of Pianobar-Windows, stick with version 2019.05.03.  For some reason the key commands are erradically accepted by pianobar and the responses are erratic as well.  I suspect something has changed with pianobar that makes it incompatible with the telnet library I'm Currently using.  Need to investigate more.
 	

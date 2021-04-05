@@ -13,6 +13,7 @@ Public Class Service1
     Dim tcpListener
 
     Protected Overrides Sub OnStart(ByVal args() As String)
+
         Dim help As String = "TandoraProxy, Ver. 2.5 (2/14/2021), toddnelson.net.  https://toddnelson.net" & vbCrLf & vbCrLf &
             "Place a tandoraproxy.cfg file in the same directory as TandoraProxySvc.exe with the following settings: " & vbCrLf & vbCrLf &
             "pianopath=<absolute path to Pianobar exe> (default: current directory)" & vbCrLf &
@@ -75,10 +76,10 @@ Public Class Service1
 
         If tc.IsConnected Then
             tc.WriteLine(pianoPath.Substring(0, 2))
-            tc.WriteLine("""" & pianoPath & """")
+            tc.WriteLine("""" & pianoPath & """") 'start pianobar.exe
             Threading.Thread.Sleep(3000)
 
-            'set pianobar to "high" priroty to avoid stuttering audio
+            'set pianobar to "high" priority to avoid stuttering audio
             Process.Start("wmic", "process where name=""pianobar.exe"" CALL setpriority 128")
 
             Dim resp As String = ""
