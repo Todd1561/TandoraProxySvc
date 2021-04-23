@@ -9,7 +9,7 @@ Public Class Service1
     Dim pianobarStations As New ArrayList, pSong As String = "", pAlbum As String = "", pArtist As String = "", pStation As String = ""
     Dim cmd As String = "", pCurTime As String = "/", pIsPlaying As Boolean = False, pianobarLast As String = ""
     Dim pianoPath As String = AppDomain.CurrentDomain.BaseDirectory & "Pianobar.exe", pianoServ As String = "localhost", pianoPort As String = "23"
-    Dim username As String = "", password As String = "", tandoraPort As String = "1561"
+    Dim username As String = "", password As String = "", tandoraPort As String = "1561", isTandoraActive As Boolean = False
     Dim tcpListener
 
     Protected Overrides Sub OnStart(ByVal args() As String)
@@ -66,6 +66,30 @@ Public Class Service1
     End Sub
 
     Sub MonitorPianobar()
+
+        Dim pingPandora As New NetworkInformation.Ping
+        Dim pingReply As NetworkInformation.PingReply
+10:
+
+        Try
+
+            pingReply = pingPandora.Send("tuner.pandora.com")
+
+            If pingReply.Status <> NetworkInformation.IPStatus.Success Then
+                EventLog.WriteEntry("TandoraProxy", "tuner.pandora.com could not be reached, waiting 3 minutes and trying again." & vbCrLf & vbCrLf & "Response: " & pingReply.Status.ToString, EventLogEntryType.Error, 1, 1)
+                Thread.Sleep(180000)
+                GoTo 10
+            End If
+
+        Catch ex As Exception
+            EventLog.WriteEntry("TandoraProxy", "tuner.pandora.com could not be reached, waiting 3 minutes and trying again." & vbCrLf & vbCrLf & "Response: " & ex.Message, EventLogEntryType.Error, 1, 1)
+            Thread.Sleep(180000)
+
+            GoTo 10
+        End Try
+
+        isTandoraActive = True
+
         Dim tc As MinimalisticTelnet.TelnetConnection = New MinimalisticTelnet.TelnetConnection(pianoServ, pianoPort)
         Dim s As String = tc.Login(username, password, 600)
         Console.Write(s)
@@ -198,46 +222,53 @@ Public Class Service1
             End While
 
             Console.WriteLine("Command Received: """ & fullMsg & """ (" & Now & ")")
+            Dim sendStr As String = ""
 
-            If fullMsg.Contains("change station") Then
+            If isTandoraActive Then
 
-                'Capture current song info so I know when pianobar has finished selecting new song
-                Dim curPianobarDur As String = pCurTime.Substring(pCurTime.IndexOf("/"))
+                If fullMsg.Contains("change station") Then
 
-                'See if song selected, if so need to press 's' first to change station
-                If pianobarLast.Substring(0, 3) = "#  " Then cmd = "s|,|"
-                cmd += pianobarStations.IndexOf(fullMsg.Substring(15)) & vbCrLf
+                    'Capture current song info so I know when pianobar has finished selecting new song
+                    Dim curPianobarDur As String = pCurTime.Substring(pCurTime.IndexOf("/"))
 
-                'Wait for pianobar to select song and start playing
-                Do Until curPianobarDur <> pCurTime.Substring(pCurTime.IndexOf("/"))
-                    Threading.Thread.Sleep(10)
-                Loop
-            ElseIf fullMsg.Contains("playpause") Then
-                cmd = "p"
-            ElseIf fullMsg.Contains("next") Then
-                Dim curPianobarDur As String = pCurTime.Substring(pCurTime.IndexOf("/"))
-                cmd = "n"
-                Do Until curPianobarDur <> pCurTime.Substring(pCurTime.IndexOf("/"))
-                    Threading.Thread.Sleep(10)
-                Loop
-            ElseIf fullMsg.Contains("thumbsdown") Then
-                Dim curPianobarDur As String = pCurTime.Substring(pCurTime.IndexOf("/"))
-                cmd = "-"
-                Do Until curPianobarDur <> pCurTime.Substring(pCurTime.IndexOf("/"))
-                    Threading.Thread.Sleep(100)
-                Loop
-            ElseIf fullMsg.Contains("thumpsup") Then
-                cmd = "+"
+                    'See if song selected, if so need to press 's' first to change station
+                    If pianobarLast.Substring(0, 3) = "#  " Then cmd = "s|,|"
+                    cmd += pianobarStations.IndexOf(fullMsg.Substring(15)) & vbCrLf
+
+                    'Wait for pianobar to select song and start playing
+                    Do Until curPianobarDur <> pCurTime.Substring(pCurTime.IndexOf("/"))
+                        Threading.Thread.Sleep(10)
+                    Loop
+                ElseIf fullMsg.Contains("playpause") Then
+                    cmd = "p"
+                ElseIf fullMsg.Contains("next") Then
+                    Dim curPianobarDur As String = pCurTime.Substring(pCurTime.IndexOf("/"))
+                    cmd = "n"
+                    Do Until curPianobarDur <> pCurTime.Substring(pCurTime.IndexOf("/"))
+                        Threading.Thread.Sleep(10)
+                    Loop
+                ElseIf fullMsg.Contains("thumbsdown") Then
+                    Dim curPianobarDur As String = pCurTime.Substring(pCurTime.IndexOf("/"))
+                    cmd = "-"
+                    Do Until curPianobarDur <> pCurTime.Substring(pCurTime.IndexOf("/"))
+                        Threading.Thread.Sleep(100)
+                    Loop
+                ElseIf fullMsg.Contains("thumpsup") Then
+                    cmd = "+"
+                End If
+
+                If Trim(pStation) = "" Then pStation = "** No Station Selected **"
+                If Trim(pSong) = "" Then pSong = "** No Song Selected **"
+
+                sendStr = "IS PLAYING: " & pIsPlaying & vbCrLf &
+                                        "STATION LIST: " & String.Join("|", pianobarStations.ToArray) & vbCrLf &
+                                        "CURRENT STATION: " & pStation & vbCrLf &
+                                        "CURRENT SONG: """ & pSong.Replace(ChrW(233), "e") & """ by """ & pArtist & """ on """ & pAlbum & """" & vbCrLf &
+                                        "CURRENT TIME: " & pCurTime & vbCrLf
+
+            Else
+                sendStr = "Waiting for TandoraProxy to start up..."
             End If
-
-            If Trim(pStation) = "" Then pStation = "** No Station Selected **"
-            If Trim(pSong) = "" Then pSong = "** No Song Selected **"
-
-            Dim sendStr As String = "IS PLAYING: " & pIsPlaying & vbCrLf &
-                                    "STATION LIST: " & String.Join("|", pianobarStations.ToArray) & vbCrLf &
-                                    "CURRENT STATION: " & pStation & vbCrLf &
-                                    "CURRENT SONG: """ & pSong.Replace(ChrW(233), "e") & """ by """ & pArtist & """ on """ & pAlbum & """" & vbCrLf &
-                                    "CURRENT TIME: " & pCurTime & vbCrLf
 
             Dim sendBytes As Byte() = Encoding.ASCII.GetBytes(sendStr)
             clientStream.Write(sendBytes, 0, sendBytes.Length)

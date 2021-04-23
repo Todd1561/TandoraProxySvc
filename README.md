@@ -26,7 +26,8 @@ From here you can use whatever language you want that can work with TCP sockets 
 `STATION LIST:` Pipe-separated list of Pandora stations on your account  
 `CURRENT STATION:` The currently selected Pandora station  
 `CURRENT SONG:` The song currently playing  
-`CURRENT TIME:` Current play time and remaining duration
+`CURRENT TIME:` Current play time and remaining duration  
+`Waiting for TandoraProxy to start up...` Service cannot reach the Pandora servers yet, so we're waiting
 
 ## Example Response
 `IS PLAYING: False`  
