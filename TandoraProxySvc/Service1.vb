@@ -8,14 +8,15 @@ Public Class Service1
 
     Dim pianobarStations As New ArrayList, pSong As String = "", pAlbum As String = "", pArtist As String = "", pStation As String = ""
     Dim cmd As String = "", pCurTime As String = "/", pIsPlaying As Boolean = False, pianobarLast As String = ""
-    Dim pianoPath As String = AppDomain.CurrentDomain.BaseDirectory & "Pianobar.exe", pianoServ As String = "localhost", pianoPort As String = "23"
+    Dim pianoPath As String = AppDomain.CurrentDomain.BaseDirectory & "Pianobar.exe", pianoServ As String = "localhost", pianoPort As String = "23", logFile = ""
     Dim username As String = "", password As String = "", tandoraPort As String = "1561", isTandoraActive As Boolean = False
     Dim tcpListener
 
     Protected Overrides Sub OnStart(ByVal args() As String)
 
-        Dim help As String = "TandoraProxy, Ver. 2.5 (2/14/2021), toddnelson.net.  https://toddnelson.net" & vbCrLf & vbCrLf &
+        Dim help As String = "TandoraProxy, Ver. 2.7 (10/26/2021), toddnelson.net.  https://toddnelson.net" & vbCrLf & vbCrLf &
             "Place a tandoraproxy.cfg file in the same directory as TandoraProxySvc.exe with the following settings: " & vbCrLf & vbCrLf &
+            "logfile=<absolute path to file to log all service activity>" & vbCrLf &
             "pianopath=<absolute path to Pianobar exe> (default: current directory)" & vbCrLf &
             "pianoserv=<address of Pianobar Telnet server> (default: localhost)" & vbCrLf &
             "pianoport=<TCP port of Pianobar Telnet server> (default: 23)" & vbCrLf &
@@ -40,6 +41,7 @@ Public Class Service1
             If line.Substring(0, line.IndexOf("=") + 1) = "tandoraport=" And line.Length > 12 Then tandoraPort = line.Substring(line.IndexOf("=") + 1)
             If line.Substring(0, line.IndexOf("=") + 1) = "username=" And line.Length > 9 Then username = line.Substring(line.IndexOf("=") + 1)
             If line.Substring(0, line.IndexOf("=") + 1) = "password=" And line.Length > 9 Then password = line.Substring(line.IndexOf("=") + 1)
+            If line.Substring(0, line.IndexOf("=") + 1) = "logfile=" And line.Length > 8 Then logFile = line.Substring(line.IndexOf("=") + 1)
         Next line
 
         If username = "" Or password = "" Then
@@ -156,9 +158,12 @@ Public Class Service1
                         Dim m As Match = Regex.Match(resp, "#\s+([-\d:]+)/([-\d:]+)")
                         pCurTime = m.Groups(1).Value & "/" & m.Groups(2).Value
                         If lastPCurTime <> pCurTime Then pIsPlaying = True Else pIsPlaying = False
+                    Else
+                        If logFile <> "" Then File.AppendAllText(logFile, vbCrLf & vbCrLf & "*** Start Update From Pianobar On " & Date.Now.ToString() & " ***" & vbCrLf & resp.Trim & vbCrLf & "*** End Update From Pianobar ***")
                     End If
 
                     Console.Write(resp)
+
                     pianobarLast = resp
                 End If
 
@@ -200,6 +205,7 @@ Public Class Service1
             Dim encoder As ASCIIEncoding = New ASCIIEncoding
             Dim bytesRead As Integer
             Dim fullMsg As String = ""
+            'Dim clientIP As String = CType(tcpClient.Client.RemoteEndPoint, IPEndPoint).Address.ToString
 
             While True
                 bytesRead = 0
@@ -222,6 +228,8 @@ Public Class Service1
             End While
 
             Console.WriteLine("Command Received: """ & fullMsg & """ (" & Now & ")")
+            If logFile <> "" Then File.AppendAllText(logFile, vbCrLf & vbCrLf & "*** Start Command To Tandora Proxy On " & Date.Now.ToString() & " ***" & vbCrLf & fullMsg.Trim & vbCrLf & "*** End Command To Tandora Proxy ***")
+
             Dim sendStr As String = ""
 
             If isTandoraActive Then
