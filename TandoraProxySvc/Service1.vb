@@ -278,6 +278,8 @@ Public Class Service1
                 sendStr = "Waiting for TandoraProxy to start up..."
             End If
 
+            If logFile <> "" Then File.AppendAllText(logFile, vbCrLf & vbCrLf & "*** Start Response From Tandora Proxy On " & Date.Now.ToString() & " ***" & vbCrLf & sendStr.Trim & vbCrLf & "*** End Response From Tandora Proxy ***")
+
             Dim sendBytes As Byte() = Encoding.ASCII.GetBytes(sendStr)
             clientStream.Write(sendBytes, 0, sendBytes.Length)
 
