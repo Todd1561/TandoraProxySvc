@@ -230,7 +230,7 @@ Public Class Service1
             Console.WriteLine("Command Received: """ & fullMsg & """ (" & Now & ")")
             If logFile <> "" Then File.AppendAllText(logFile, vbCrLf & vbCrLf & "*** Start Command To Tandora Proxy On " & Date.Now.ToString() & " ***" & vbCrLf & fullMsg.Trim & vbCrLf & "*** End Command To Tandora Proxy ***")
 
-            Dim sendStr As String = ""
+            Dim sendStr As String = "", isSongSelected As Boolean = pianobarLast.Substring(0, 3) = "#  "
 
             If isTandoraActive Then
 
@@ -240,28 +240,32 @@ Public Class Service1
                     Dim curPianobarDur As String = pCurTime.Substring(pCurTime.IndexOf("/"))
 
                     'See if song selected, if so need to press 's' first to change station
-                    If pianobarLast.Substring(0, 3) = "#  " Then cmd = "s|,|"
+                    If isSongSelected Then cmd = "s|,|"
                     cmd += pianobarStations.IndexOf(fullMsg.Substring(15)) & vbCrLf
 
                     'Wait for pianobar to select song and start playing
                     Do Until curPianobarDur <> pCurTime.Substring(pCurTime.IndexOf("/"))
                         Threading.Thread.Sleep(10)
                     Loop
-                ElseIf fullMsg.Contains("playpause") Then
+
+                ElseIf isSongSelected AndAlso fullMsg.Contains("playpause") Then
                     cmd = "p"
-                ElseIf fullMsg.Contains("next") Then
+
+                ElseIf isSongSelected AndAlso fullMsg.Contains("next") Then
                     Dim curPianobarDur As String = pCurTime.Substring(pCurTime.IndexOf("/"))
                     cmd = "n"
                     Do Until curPianobarDur <> pCurTime.Substring(pCurTime.IndexOf("/"))
                         Threading.Thread.Sleep(10)
                     Loop
-                ElseIf fullMsg.Contains("thumbsdown") Then
+
+                ElseIf isSongSelected AndAlso fullMsg.Contains("thumbsdown") Then
                     Dim curPianobarDur As String = pCurTime.Substring(pCurTime.IndexOf("/"))
                     cmd = "-"
                     Do Until curPianobarDur <> pCurTime.Substring(pCurTime.IndexOf("/"))
                         Threading.Thread.Sleep(100)
                     Loop
-                ElseIf fullMsg.Contains("thumpsup") Then
+
+                ElseIf isSongSelected AndAlso fullMsg.Contains("thumpsup") Then
                     cmd = "+"
                 End If
 
