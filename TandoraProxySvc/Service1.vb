@@ -6,7 +6,7 @@ Imports System.Text.RegularExpressions
 Imports System.Threading
 Public Class Service1
 
-    Dim pianobarStations As New ArrayList, pSong As String = "", pAlbum As String = "", pArtist As String = "", pStation As String = ""
+    Dim pianobarStations As New ArrayList, pSong As String = "", pAlbum As String = "", pArtist As String = "", pStation As String = "", pErrorTxt As String = ""
     Dim cmd As String = "", pCurTime As String = "/", pIsPlaying As Boolean = False, pianobarLast As String = ""
     Dim pianoPath As String = AppDomain.CurrentDomain.BaseDirectory & "Pianobar.exe", pianoServ As String = "localhost", pianoPort As String = "23", logFile = ""
     Dim username As String = "", password As String = "", tandoraPort As String = "1561", isTandoraActive As Boolean = False
@@ -127,45 +127,59 @@ Public Class Service1
 
                 If resp <> "" Then
 
+                    pErrorTxt = ""
+
+                    If resp.Contains("Error: Access denied. Try again later.") Then
+                        'handle odd issue where pandora won't play a station and reload the station list
+                        cmd = "s"
+                        pErrorTxt = "This station is currently unavailable, try again later."
+                        pSong = ""
+                        pArtist = ""
+                        pAlbum = ""
+                        pStation = ""
+                        pCurTime = "/"
+                        pIsPlaying = False
+                    End If
+
                     'parse out station list
                     If Regex.IsMatch(resp, "\s(\d+)\).{5}(.*?)\n") Then
-                        For Each station As Match In Regex.Matches(resp, "\s(\d+)\).{5}(.*?)\n")
+                            For Each station As Match In Regex.Matches(resp, "\s(\d+)\).{5}(.*?)\n")
 
-                            'Detected the first station, clear the array
-                            If station.Groups(1).Value.Trim = "0" Then pianobarStations.Clear()
-                            pianobarStations.Add(station.Groups(2).Value.Trim)
+                                'Detected the first station, clear the array
+                                If station.Groups(1).Value.Trim = "0" Then pianobarStations.Clear()
+                                pianobarStations.Add(station.Groups(2).Value.Trim)
 
-                        Next
+                            Next
+                        End If
+
+                        'parse out current song info
+                        If Regex.IsMatch(resp, "\|\>  ""(.*?)"" by ""(.*?)"" on ""(.*?)""") Then
+                            Dim m As Match = Regex.Match(resp, "\|\>  ""(.*?)"" by ""(.*?)"" on ""(.*?)""")
+                            pSong = m.Groups(1).Value
+                            pArtist = m.Groups(2).Value
+                            pAlbum = m.Groups(3).Value
+                        End If
+
+                        'parse out current station
+                        If Regex.IsMatch(resp, "\|\>  Station ""(.*?)""") Then
+                            Dim m As Match = Regex.Match(resp, "\|\>  Station ""(.*?)""")
+                            pStation = m.Groups(1).Value
+                        End If
+
+                        'parse out current play time
+                        If Regex.IsMatch(resp, "#\s+([-\d:]+)/([-\d:]+)") Then
+                            Dim lastPCurTime As String = pCurTime
+                            Dim m As Match = Regex.Match(resp, "#\s+([-\d:]+)/([-\d:]+)")
+                            pCurTime = m.Groups(1).Value & "/" & m.Groups(2).Value
+                            If lastPCurTime <> pCurTime Then pIsPlaying = True Else pIsPlaying = False
+                        Else
+                            If logFile <> "" Then File.AppendAllText(logFile, vbCrLf & vbCrLf & "*** Start Update From Pianobar On " & Date.Now.ToString() & " ***" & vbCrLf & resp.Trim & vbCrLf & "*** End Update From Pianobar ***")
+                        End If
+
+                        Console.Write(resp)
+
+                        pianobarLast = resp
                     End If
-
-                    'parse out current song info
-                    If Regex.IsMatch(resp, "\|\>  ""(.*?)"" by ""(.*?)"" on ""(.*?)""") Then
-                        Dim m As Match = Regex.Match(resp, "\|\>  ""(.*?)"" by ""(.*?)"" on ""(.*?)""")
-                        pSong = m.Groups(1).Value
-                        pArtist = m.Groups(2).Value
-                        pAlbum = m.Groups(3).Value
-                    End If
-
-                    'parse out current station
-                    If Regex.IsMatch(resp, "\|\>  Station ""(.*?)""") Then
-                        Dim m As Match = Regex.Match(resp, "\|\>  Station ""(.*?)""")
-                        pStation = m.Groups(1).Value
-                    End If
-
-                    'parse out current play time
-                    If Regex.IsMatch(resp, "#\s+([-\d:]+)/([-\d:]+)") Then
-                        Dim lastPCurTime As String = pCurTime
-                        Dim m As Match = Regex.Match(resp, "#\s+([-\d:]+)/([-\d:]+)")
-                        pCurTime = m.Groups(1).Value & "/" & m.Groups(2).Value
-                        If lastPCurTime <> pCurTime Then pIsPlaying = True Else pIsPlaying = False
-                    Else
-                        If logFile <> "" Then File.AppendAllText(logFile, vbCrLf & vbCrLf & "*** Start Update From Pianobar On " & Date.Now.ToString() & " ***" & vbCrLf & resp.Trim & vbCrLf & "*** End Update From Pianobar ***")
-                    End If
-
-                    Console.Write(resp)
-
-                    pianobarLast = resp
-                End If
 
             End While
 
@@ -243,9 +257,12 @@ Public Class Service1
                     If isSongSelected Then cmd = "s|,|"
                     cmd += pianobarStations.IndexOf(fullMsg.Substring(15)) & vbCrLf
 
+                    Dim loopCount As Integer = 0
+
                     'Wait for pianobar to select song and start playing
-                    Do Until curPianobarDur <> pCurTime.Substring(pCurTime.IndexOf("/"))
+                    Do Until curPianobarDur <> pCurTime.Substring(pCurTime.IndexOf("/")) Or loopCount > 300 Or pErrorTxt <> ""
                         Threading.Thread.Sleep(10)
+                        loopCount += 1
                     Loop
 
                 ElseIf isSongSelected AndAlso fullMsg.Contains("playpause") Then
@@ -276,7 +293,8 @@ Public Class Service1
                                         "STATION LIST: " & String.Join("|", pianobarStations.ToArray) & vbCrLf &
                                         "CURRENT STATION: " & pStation & vbCrLf &
                                         "CURRENT SONG: """ & pSong.Replace(ChrW(233), "e") & """ by """ & pArtist & """ on """ & pAlbum & """" & vbCrLf &
-                                        "CURRENT TIME: " & pCurTime & vbCrLf
+                                        "CURRENT TIME: " & pCurTime & vbCrLf &
+                                        "ERROR TEXT: " & pErrorTxt & vbCrLf
 
             Else
                 sendStr = "Waiting for TandoraProxy to start up..."
